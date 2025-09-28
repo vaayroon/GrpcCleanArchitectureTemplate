@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package documents.v1;
+
+option csharp_namespace = "DocumentService.Contracts.Protos.V1";
+
+// API Version: v1
+// Streaming strategy:
+// - UploadDocument: client-streaming chunks -> single UploadDocumentResponse
+// - GetDocument: server-streaming chunks
+// Pagination: ListDocuments uses page_token + page_size, returns next_page_token
+// Error mapping: server sets gRPC status codes; optional rich error details extension (future)
+
+message UploadDocumentRequest {
+  // First chunk should include metadata; subsequent chunks may omit these fields
+  string file_name = 1;            // Original file name
+  string content_type = 2;         // MIME type
+  string title = 3;                // Optional title/override
+  repeated string tags = 4;        // Optional tags
+  bytes content_chunk = 5;         // Raw bytes chunk
+  bool is_last_chunk = 6;          // Indicates final chunk
+  int64 total_size = 7;            // Total size in bytes (sent in first chunk ideally)
+}
+
+message UploadDocumentResponse {
+  string document_id = 1;
+  string checksum = 2;             // Algorithm:HEX (e.g., SHA256:...)
+  string storage_path = 3;
+}
+
+message GetDocumentRequest {
+  string document_id = 1;
+}
+
+message GetDocumentChunk {
+  bytes content_chunk = 1;
+  bool is_last_chunk = 2;
+  string checksum = 3;             // Provided only in final chunk
+  int64 total_size = 4;            // Provided only in final chunk
+  string content_type = 5;         // Provided in first chunk
+  string file_name = 6;            // Provided in first chunk
+}
+
+message GetDocumentMetadataRequest { string document_id = 1; }
+
+message DocumentMetadata {
+  string document_id = 1;
+  string file_name = 2;
+  string content_type = 3;
+  int64 size_bytes = 4;
+  string checksum = 5;
+  string storage_path = 6;
+  string title = 7;
+  repeated string tags = 8;
+  string created_at_utc = 9; // ISO8601
+  string updated_at_utc = 10; // ISO8601
+}
+
+message GetDocumentMetadataResponse {
+  DocumentMetadata metadata = 1;
+}
+
+message ListDocumentsRequest {
+  int32 page_size = 1;           // Suggested: <= 100
+  string page_token = 2;         // Opaque cursor
+  string folder_id = 3;          // Optional folder filter
+}
+
+message ListDocumentsResponse {
+  repeated DocumentMetadata documents = 1;
+  string next_page_token = 2;
+}
+
+message DeleteDocumentRequest { string document_id = 1; }
+message DeleteDocumentResponse { bool success = 1; }
+
+message UpdateDocumentMetadataRequest {
+  string document_id = 1;
+  string title = 2;              // Optional new title (empty to clear)
+  repeated string tags = 3;      // Full replacement set
+  string content_type = 4;       // Optional new content type
+}
+message UpdateDocumentMetadataResponse { DocumentMetadata metadata = 1; }
+
+service DocumentService {
+  rpc UploadDocument (stream UploadDocumentRequest) returns (UploadDocumentResponse);
+  rpc GetDocument (GetDocumentRequest) returns (stream GetDocumentChunk);
+  rpc GetDocumentMetadata (GetDocumentMetadataRequest) returns (GetDocumentMetadataResponse);
+  rpc ListDocuments (ListDocumentsRequest) returns (ListDocumentsResponse);
+  rpc DeleteDocument (DeleteDocumentRequest) returns (DeleteDocumentResponse);
+  rpc UpdateDocumentMetadata (UpdateDocumentMetadataRequest) returns (UpdateDocumentMetadataResponse);
+}

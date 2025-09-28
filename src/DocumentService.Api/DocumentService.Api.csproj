@@ -3,7 +3,7 @@
     <Description>gRPC Host: endpoints, DI composition root, interceptors.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <Protobuf Include="Protos\greet.proto" GrpcServices="Server" />
+    <Protobuf Include="..\DocumentService.Contracts\Protos\v1\documents.proto" GrpcServices="Server" ProtoRoot="..\DocumentService.Contracts\Protos" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.64.0" />
